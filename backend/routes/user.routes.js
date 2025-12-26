@@ -1,23 +1,27 @@
 const express = require("express");
-const router = express.Router();
+const bcrypt = require("bcrypt");
 const prisma = require("../prismaClient");
+
+const router = express.Router();
 
 router.post("/users", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        password,
+        password: hashedPassword,
         role,
       },
     });
 
     res.status(201).json(user);
   } catch (error) {
-    res.status(500).json({ error: "User creation failed" });
+    res.status(500).json({ message: "User creation failed" });
   }
 });
 
