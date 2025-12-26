@@ -12,3 +12,5 @@ app.use("/api", healthRoutes);
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+const userRoutes = require("./routes/user.routes");
+app.use("/api", userRoutes);
