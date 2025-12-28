@@ -35,3 +35,6 @@ app.use("/api", batchRoutes);
 
 const roomRoutes = require("./routes/room.routes");
 app.use("/api", roomRoutes);
+
+const timetableRoutes = require("./routes/timetable.routes");
+app.use("/api", timetableRoutes);
