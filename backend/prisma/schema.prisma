@@ -20,3 +20,10 @@ enum Role {
   ADMIN
   STUDENT
 }
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+}

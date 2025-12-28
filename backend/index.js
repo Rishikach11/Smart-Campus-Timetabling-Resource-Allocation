@@ -21,3 +21,6 @@ app.use("/api", authRoutes);
 const protectedRoutes = require("./routes/protected.routes");
 app.use("/api", protectedRoutes);
 
+const departmentRoutes = require("./routes/department.routes");
+app.use("/api", departmentRoutes);
+
