@@ -22,11 +22,11 @@ router.post(
     if (!batch) {
       return res.status(404).json({ message: "Batch not found" });
     }
-    
-    await prisma.timetableEntry.deleteMany({
-        where: { batchId },
-    });
 
+    // Clear existing timetable
+    await prisma.timetableEntry.deleteMany({
+      where: { batchId },
+    });
 
     const courses = await prisma.course.findMany({
       where: { departmentId: batch.departmentId },
@@ -36,30 +36,52 @@ router.post(
     const rooms = await prisma.room.findMany();
 
     const created = [];
+    const facultyLoad = {};
 
     for (const course of courses) {
       let remainingHours = course.weeklyHours;
-      for (const slot of timeSlots) {
-        for (const room of rooms) {
-          try {
-            await prisma.timetableEntry.create({
-              data: {
-                batchId,
-                courseId: course.id,
-                facultyId: course.facultyId,
-                roomId: room.id,
-                timeSlotId: slot.id,
-              },
-            });
+      const usedDays = new Set();
 
-            created.push({ course: course.name, slot: slot.id });
-            remainingHours--;
-            break;
-          } catch {
-            continue;
-          }
-        }
+      if (!facultyLoad[course.facultyId]) {
+        facultyLoad[course.facultyId] = 0;
+      }
+
+      const days = ["MON", "TUE", "WED", "THU", "FRI"];
+
+      for (const day of days) {
         if (remainingHours === 0) break;
+        if (facultyLoad[course.facultyId] >= 16) break;
+
+        const daySlots = timeSlots.filter(slot => slot.day === day);
+
+        for (const slot of daySlots) {
+          for (const room of rooms) {
+            try {
+              await prisma.timetableEntry.create({
+                data: {
+                  batchId,
+                  courseId: course.id,
+                  facultyId: course.facultyId,
+                  roomId: room.id,
+                  timeSlotId: slot.id,
+                },
+              });
+
+              created.push({
+                course: course.name,
+                day: slot.day,
+                time: `${slot.startTime}-${slot.endTime}`,
+              });
+
+              remainingHours--;
+              facultyLoad[course.facultyId]++;
+              break;
+            } catch {
+              continue;
+            }
+          }
+          break; // VERY IMPORTANT: only one slot per day
+        }
       }
     }
 
