@@ -27,6 +27,7 @@ model Department {
   code      String   @unique
   courses   Course[]
   faculty   Faculty[]
+  batches   Batch[]
   createdAt DateTime @default(now())
 }
 
@@ -50,6 +51,15 @@ model Faculty {
   name         String
   email        String     @unique
   maxLoad      Int
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model Batch {
+  id           Int        @id @default(autoincrement())
+  semester     Int
+  size         Int
   departmentId Int
   department   Department @relation(fields: [departmentId], references: [id])
   createdAt    DateTime   @default(now())
