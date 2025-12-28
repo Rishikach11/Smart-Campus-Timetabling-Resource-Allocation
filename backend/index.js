@@ -32,3 +32,6 @@ app.use("/api", facultyRoutes);
 
 const batchRoutes = require("./routes/batch.routes");
 app.use("/api", batchRoutes);
+
+const roomRoutes = require("./routes/room.routes");
+app.use("/api", roomRoutes);

@@ -36,6 +36,12 @@ enum CourseType {
   LAB
 }
 
+enum RoomType {
+  CLASSROOM
+  LAB
+}
+
+
 model Course {
   id           Int        @id @default(autoincrement())
   name         String
@@ -63,4 +69,12 @@ model Batch {
   departmentId Int
   department   Department @relation(fields: [departmentId], references: [id])
   createdAt    DateTime   @default(now())
+}
+
+model Room {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  type      RoomType
+  capacity  Int
+  createdAt DateTime @default(now())
 }
