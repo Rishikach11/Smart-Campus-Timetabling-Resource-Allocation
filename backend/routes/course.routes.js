@@ -25,6 +25,7 @@ router.post(
           code,
           type,
           departmentId,
+          weeklyHours: weeklyHours ?? 4,
         },
       });
 

@@ -25,6 +25,7 @@ router.post(
           email,
           maxLoad,
           departmentId,
+          maxWeeklyLoad: maxWeeklyLoad ?? 16,
         },
       });
 

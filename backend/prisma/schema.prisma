@@ -60,6 +60,7 @@ model Course {
   timetable    TimetableEntry[]
   createdAt    DateTime   @default(now())
   facultyId Int?
+  weeklyHours  Int       @default(4)
   faculty   Faculty? @relation(fields: [facultyId], references: [id])
 
 }
@@ -73,6 +74,7 @@ model Faculty {
   department   Department @relation(fields: [departmentId], references: [id])
   timetable    TimetableEntry[]
   createdAt    DateTime   @default(now())
+  maxWeeklyLoad  Int      @default(16)
   courses Course[]
   
 }
