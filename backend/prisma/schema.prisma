@@ -107,22 +107,24 @@ model TimeSlot {
 }
 
 model TimetableEntry {
-  id         Int      @id @default(autoincrement())
-  batchId    Int
-  courseId   Int
-  facultyId  Int
-  roomId     Int
-  timeSlotId Int
+  id          Int      @id @default(autoincrement())
 
-  batch      Batch    @relation(fields: [batchId], references: [id])
-  course     Course   @relation(fields: [courseId], references: [id])
-  faculty    Faculty  @relation(fields: [facultyId], references: [id])
-  room       Room     @relation(fields: [roomId], references: [id])
-  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+  batchId     Int
+  courseId    Int
+  facultyId   Int
+  roomId      Int
+  timeSlotId  Int
 
-  createdAt  DateTime @default(now())
+  batch       Batch     @relation(fields: [batchId], references: [id])
+  course      Course    @relation(fields: [courseId], references: [id])
+  faculty     Faculty   @relation(fields: [facultyId], references: [id])
+  room        Room      @relation(fields: [roomId], references: [id])
+  timeSlot    TimeSlot  @relation(fields: [timeSlotId], references: [id])
+
+  createdAt   DateTime  @default(now())
+
   @@unique([batchId, timeSlotId])
   @@unique([facultyId, timeSlotId])
   @@unique([roomId, timeSlotId])
-
 }
+
