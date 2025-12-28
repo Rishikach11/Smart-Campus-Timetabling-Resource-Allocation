@@ -25,5 +25,21 @@ model Department {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   code      String   @unique
+  courses   Course[]
   createdAt DateTime @default(now())
+}
+
+enum CourseType {
+  THEORY
+  LAB
+}
+
+model Course {
+  id           Int        @id @default(autoincrement())
+  name         String
+  code         String     @unique
+  type         CourseType
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime   @default(now())
 }
