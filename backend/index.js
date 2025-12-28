@@ -26,3 +26,6 @@ app.use("/api", departmentRoutes);
 
 const courseRoutes = require("./routes/course.routes");
 app.use("/api", courseRoutes);
+
+const facultyRoutes = require("./routes/faculty.routes");
+app.use("/api", facultyRoutes);

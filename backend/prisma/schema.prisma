@@ -26,6 +26,7 @@ model Department {
   name      String   @unique
   code      String   @unique
   courses   Course[]
+  faculty   Faculty[]
   createdAt DateTime @default(now())
 }
 
@@ -39,6 +40,16 @@ model Course {
   name         String
   code         String     @unique
   type         CourseType
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model Faculty {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  maxLoad      Int
   departmentId Int
   department   Department @relation(fields: [departmentId], references: [id])
   createdAt    DateTime   @default(now())
