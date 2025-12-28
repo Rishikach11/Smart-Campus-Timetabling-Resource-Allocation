@@ -55,6 +55,17 @@ router.post(
         const daySlots = timeSlots.filter(slot => slot.day === day);
 
         for (const slot of daySlots) {
+          const isAvailable = await prisma.facultyAvailability.findFirst({
+            where: {
+              facultyId: course.facultyId,
+              timeSlotId: slot.id,
+            },
+          });
+
+if (!isAvailable) {
+  continue; // faculty not available in this slot
+}
+
           for (const room of rooms) {
             try {
               await prisma.timetableEntry.create({

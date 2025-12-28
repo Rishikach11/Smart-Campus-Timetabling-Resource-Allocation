@@ -76,6 +76,8 @@ model Faculty {
   createdAt    DateTime   @default(now())
   maxWeeklyLoad  Int      @default(16)
   courses Course[]
+  availabilities FacultyAvailability[]
+
   
 }
 
@@ -104,6 +106,8 @@ model TimeSlot {
   startTime String
   endTime   String
   timetable    TimetableEntry[]
+  facultyAvailabilities FacultyAvailability[]
+
 }
 
 model TimetableEntry {
@@ -126,5 +130,16 @@ model TimetableEntry {
   @@unique([batchId, timeSlotId])
   @@unique([facultyId, timeSlotId])
   @@unique([roomId, timeSlotId])
+}
+model FacultyAvailability {
+  id          Int      @id @default(autoincrement())
+
+  facultyId   Int
+  timeSlotId  Int
+
+  faculty     Faculty   @relation(fields: [facultyId], references: [id])
+  timeSlot    TimeSlot  @relation(fields: [timeSlotId], references: [id])
+
+  @@unique([facultyId, timeSlotId])
 }
 
