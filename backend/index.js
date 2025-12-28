@@ -38,3 +38,9 @@ app.use("/api", roomRoutes);
 
 const timetableRoutes = require("./routes/timetable.routes");
 app.use("/api", timetableRoutes);
+
+const generateRoutes = require("./routes/generate.routes");
+app.use("/api", generateRoutes);
+
+const timetableViewRoutes = require("./routes/timetable.view.routes");
+app.use("/api", timetableViewRoutes);
