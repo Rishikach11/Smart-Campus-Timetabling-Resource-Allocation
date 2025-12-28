@@ -38,6 +38,7 @@ router.post(
     const created = [];
 
     for (const course of courses) {
+      let remainingHours = course.weeklyHours;
       for (const slot of timeSlots) {
         for (const room of rooms) {
           try {
@@ -52,12 +53,13 @@ router.post(
             });
 
             created.push({ course: course.name, slot: slot.id });
+            remainingHours--;
             break;
           } catch {
             continue;
           }
         }
-        if (created.find(c => c.course === course.name)) break;
+        if (remainingHours === 0) break;
       }
     }
 

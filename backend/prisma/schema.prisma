@@ -121,4 +121,8 @@ model TimetableEntry {
   timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
 
   createdAt  DateTime @default(now())
+  @@unique([batchId, timeSlotId])
+  @@unique([facultyId, timeSlotId])
+  @@unique([roomId, timeSlotId])
+
 }
