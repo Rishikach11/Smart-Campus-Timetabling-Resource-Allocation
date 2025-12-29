@@ -34,9 +34,16 @@ router.post(
     const rooms = await prisma.room.findMany();
 
     const created = [];
+    const report = {};
     const facultyLoad = {};
 
     for (const course of courses) {
+      report[course.name] = {
+        required: course.weeklyHours,
+        scheduled: 0,
+        reason: null,
+      };
+
       let remainingHours = course.weeklyHours;
 
       if (!facultyLoad[course.facultyId]) {
@@ -122,6 +129,7 @@ router.post(
 
             remainingHours -= 2;
             facultyLoad[course.facultyId] += 2;
+            report[course.name].scheduled += 2;
             break;
           }
         }
@@ -175,19 +183,26 @@ router.post(
 
               remainingHours--;
               facultyLoad[course.facultyId]++;
+              report[course.name].scheduled++;
               break;
             }
             break; // one theory class per day
           }
         }
       }
+      if (report[course.name].scheduled < course.weeklyHours) {
+        report[course.name].reason = "Insufficient availability or conflicts";
+      }
+
     }
 
     res.json({
-      message: "Timetable generated",
+      message: "Timetable generation completed",
+      summary: report,
       entriesCreated: created.length,
       details: created,
     });
+
   }
 );
 
