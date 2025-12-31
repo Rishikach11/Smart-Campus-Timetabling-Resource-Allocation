@@ -144,5 +144,23 @@ router.post("/generate", authenticate, authorizeAdmin, async (req, res) => {
     res.status(500).json({ message: "Automatic generation failed." });
   }
 });
+// backend/routes/timetable.routes.js
+
+router.get("/all", authenticate, async (req, res) => {
+  try {
+    const entries = await prisma.timetableEntry.findMany({
+      include: {
+        course: true,
+        faculty: true,
+        room: true,
+        timeSlot: true,
+        batch: true
+      }
+    });
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch timetable" });
+  }
+});
 
 module.exports = router;
