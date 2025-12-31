@@ -4,6 +4,7 @@ import AdminDashboard from "./pages/admin/dashboard";
 import AdminTimetable from "./pages/admin/timetable";
 import StudentTimetable from "./pages/student/timetable";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TimetablePage from "./components/admin/TimetablePage.jsx";
 
 function App() {
   return (
@@ -16,11 +17,14 @@ function App() {
         </ProtectedRoute>
       } />
 
-      <Route path="/admin/timetable" element={
-        <ProtectedRoute allowedRoles={["ADMIN", "admin"]}>
-          <AdminTimetable />
-        </ProtectedRoute>
-      } />
+      <Route 
+        path="/admin/timetable" 
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <TimetablePage />
+          </ProtectedRoute>
+        }
+      />
 
       <Route path="/student/timetable" element={
         <ProtectedRoute allowedRoles={["STUDENT"]}>
