@@ -47,3 +47,6 @@ app.use("/api", generateRoutes);
 
 const timetableViewRoutes = require("./routes/timetable.view.routes");
 app.use("/api", timetableViewRoutes);
+
+const adminRoutes = require("./routes/admin.routes");
+app.use("/api/admin", adminRoutes);
