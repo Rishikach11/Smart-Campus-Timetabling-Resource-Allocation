@@ -8,37 +8,30 @@ function TimetablePage() {
   const [entries, setEntries] = useState([]);
   const token = localStorage.getItem("token");
 
-  // Fetch all dependencies and existing entries
-// src/components/admin/TimetablePage.jsx
-
-// Inside TimetablePage.jsx
-const refreshData = async () => {
-  const headers = { Authorization: `Bearer ${token}` };
-  try {
-    const [b, c, f, r, slots, currentEntries] = await Promise.all([
-      // Pluralized to match your .routes.js files
-      fetch("http://localhost:5000/api/batches", { headers }).then(res => res.json()), //
-      fetch("http://localhost:5000/api/courses", { headers }).then(res => res.json()), //
-      fetch("http://localhost:5000/api/faculty", { headers }).then(res => res.json()), //
-      fetch("http://localhost:5000/api/rooms", { headers }).then(res => res.json()),   //
+  const refreshData = async () => {
+    const headers = { Authorization: `Bearer ${token}` };
+    try {
+      const [b, c, f, r, slots, currentEntries] = await Promise.all([
+        fetch("http://localhost:5000/api/batches", { headers }).then(res => res.json()),
+        fetch("http://localhost:5000/api/courses", { headers }).then(res => res.json()),
+        fetch("http://localhost:5000/api/faculty", { headers }).then(res => res.json()),
+        fetch("http://localhost:5000/api/rooms", { headers }).then(res => res.json()),
+        fetch("http://localhost:5000/api/timetable/timeslots", { headers }).then(res => res.json()), 
+        fetch("http://localhost:5000/api/timetable/all", { headers }).then(res => res.json()), 
+      ]);
       
-      // Fixed: Removed "/timetable" prefix to match index.js + timetable.routes.js
-      fetch("http://localhost:5000/api/timeslots", { headers }).then(res => res.json()), 
-      fetch("http://localhost:5000/api/all", { headers }).then(res => res.json()), 
-    ]);
-    
-    setData({ 
-      batches: Array.isArray(b) ? b : [], 
-      courses: Array.isArray(c) ? c : [], 
-      faculties: Array.isArray(f) ? f : [], 
-      rooms: Array.isArray(r) ? r : [], 
-      timeSlots: Array.isArray(slots) ? slots : [] 
-    });
-    setEntries(Array.isArray(currentEntries) ? currentEntries : []);
-  } catch (err) {
-    console.error("Fetch error:", err);
-  }
-};
+      setData({ 
+        batches: Array.isArray(b) ? b : [], 
+        courses: Array.isArray(c) ? c : [], 
+        faculties: Array.isArray(f) ? f : [], 
+        rooms: Array.isArray(r) ? r : [], 
+        timeSlots: Array.isArray(slots) ? slots : [] 
+      });
+      setEntries(Array.isArray(currentEntries) ? currentEntries : []);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  };
 
   useEffect(() => { refreshData(); }, [token]);
 
@@ -47,7 +40,6 @@ const refreshData = async () => {
       alert("Please select all fields");
       return;
     }
-
     const res = await fetch("http://localhost:5000/api/timetable/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -57,11 +49,52 @@ const refreshData = async () => {
     const json = await res.json();
     if (res.ok) {
       alert("Slot Allocated Successfully!");
-      refreshData(); // Reload the grid to show new entry
+      refreshData();
     } else {
       alert(json.message || "Failed to allocate slot");
     }
   };
+
+  const handleBulkGenerate = async () => {
+    if (!selection.batchId || !selection.courseId || !selection.facultyId || !selection.roomId) {
+      alert("Please select all fields");
+      return;
+    }
+    const res = await fetch("http://localhost:5000/api/timetable/bulk-generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(selection),
+    });
+
+    const json = await res.json();
+    if (res.ok) {
+      alert(json.message);
+      refreshData();
+    } else {
+      alert(json.message || "Bulk allocation failed");
+    }
+  };
+
+  const handleResetBatch = async () => {
+    if (!selection.batchId) return alert("Please select a batch first");
+    if (!window.confirm("Delete all entries for this batch? This cannot be undone.")) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/timetable/batch/${selection.batchId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        alert("Batch timetable cleared successfully.");
+        refreshData();
+      }
+    } catch (err) {
+      console.error("Reset failed:", err);
+    }
+  };
+
+  const filteredEntries = entries.filter(e => e.batchId === parseInt(selection.batchId));
 
   return (
     <div style={{ padding: "20px" }}>
@@ -69,13 +102,9 @@ const refreshData = async () => {
       <h1>Timetable Management</h1>
 
       <div style={{ 
-        display: "flex", 
-        gap: "10px", 
-        padding: "20px", 
-        backgroundColor: "#f9f9f9", 
-        borderRadius: "8px",
-        marginBottom: "30px",
-        flexWrap: "wrap"
+        display: "flex", gap: "10px", padding: "20px", 
+        backgroundColor: "#f9f9f9", borderRadius: "8px", 
+        marginBottom: "30px", flexWrap: "wrap", alignItems: "center"
       }}>
         <select onChange={e => setSelection({...selection, batchId: e.target.value})} value={selection.batchId}>
           <option value="">Select Batch</option>
@@ -97,18 +126,24 @@ const refreshData = async () => {
           {data.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
 
-        <button 
-          onClick={handleGenerate} 
-          style={{ backgroundColor: "#007bff", color: "white", border: "none", padding: "8px 15px", cursor: "pointer", borderRadius: "4px" }}
-        >
+        <button onClick={handleGenerate} style={{ backgroundColor: "#007bff", color: "white", border: "none", padding: "8px 15px", cursor: "pointer", borderRadius: "4px" }}>
           Auto-Generate Slot
+        </button>
+        <button onClick={handleBulkGenerate} style={{ backgroundColor: "#28a745", color: "white", border: "none", padding: "8px 15px", cursor: "pointer", borderRadius: "4px" }}>
+          Bulk Allocate Course
+        </button>
+        {/* CORRECTED BUTTON PLACEMENT */}
+        <button onClick={handleResetBatch} style={{ backgroundColor: "#dc3545", color: "white", padding: "8px 15px", borderRadius: "4px", border: "none", cursor: "pointer" }}>
+          Reset Batch
         </button>
       </div>
 
       <hr />
 
-      {/* The Grid View */}
-      <TimetableGrid entries={entries} timeSlots={data.timeSlots} />
+      <TimetableGrid 
+        entries={selection.batchId ? filteredEntries : []} 
+        timeSlots={data.timeSlots} 
+      />
     </div>
   );
 }
