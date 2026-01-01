@@ -13,6 +13,8 @@ model User {
   email     String   @unique
   password  String
   role      Role
+  batchId   Int?
+  batch     Batch?   @relation(fields: [batchId], references: [id])
   createdAt DateTime @default(now())
 }
 
@@ -88,6 +90,7 @@ model Batch {
   departmentId Int
   department   Department @relation(fields: [departmentId], references: [id])
   timetable    TimetableEntry[]
+  users        User[]
   createdAt    DateTime   @default(now())
 }
 

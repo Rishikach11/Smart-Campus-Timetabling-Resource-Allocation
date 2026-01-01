@@ -162,5 +162,75 @@ router.get("/all", authenticate, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch timetable" });
   }
 });
+// backend/routes/timetable.routes.js
 
+// Get timetable by Batch ID (Student View)
+router.get("/batch/:batchId", authenticate, async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const entries = await prisma.timetableEntry.findMany({
+      where: { batchId: parseInt(batchId) },
+      include: {
+        course: true,
+        faculty: true,
+        room: true,
+        timeSlot: true,
+      }
+    });
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch student timetable" });
+  }
+});
+router.post("/bulk-generate", authenticate, authorizeAdmin, async (req, res) => {
+  const { batchId, courseId, facultyId, roomId } = req.body;
+
+  try {
+    const bId = parseInt(batchId);
+    const cId = parseInt(courseId);
+    const fId = parseInt(facultyId);
+    const rId = parseInt(roomId);
+
+    // 1. Fetch data and existing entries to find conflicts
+    const [course, existingEntries, allSlots] = await Promise.all([
+      prisma.course.findUnique({ where: { id: cId } }),
+      prisma.timetableEntry.findMany({
+        where: { OR: [{ batchId: bId }, { facultyId: fId }, { roomId: rId }] },
+        select: { timeSlotId: true }
+      }),
+      prisma.timeSlot.findMany({ orderBy: [{ day: "asc" }, { startTime: "asc" }] })
+    ]);
+
+    if (!course) return res.status(404).json({ message: "Course not found" });
+    
+    const occupiedSlotIds = new Set(existingEntries.map(e => e.timeSlotId));
+    const slotsToAssign = [];
+    let hoursFound = 0;
+
+    // 2. Greedy search for free slots
+    for (const slot of allSlots) {
+      if (hoursFound >= course.weeklyHours) break;
+
+      if (!occupiedSlotIds.has(slot.id)) {
+        slotsToAssign.push({
+          batchId: bId, courseId: cId, facultyId: fId, roomId: rId, timeSlotId: slot.id
+        });
+        hoursFound++;
+      }
+    }
+
+    if (hoursFound === 0) return res.status(400).json({ message: "No free slots found" });
+
+    // 3. Perform Bulk Insert
+    await prisma.timetableEntry.createMany({ data: slotsToAssign });
+
+    res.status(201).json({ 
+      message: `Successfully allocated ${hoursFound} hours for ${course.code}` 
+    });
+
+  } catch (error) {
+    console.error("DEBUG - Bulk Error:", error); // LOOK AT YOUR TERMINAL FOR THIS
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 module.exports = router;

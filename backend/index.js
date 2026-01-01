@@ -39,8 +39,11 @@ app.use("/api", batchRoutes);
 const roomRoutes = require("./routes/room.routes");
 app.use("/api", roomRoutes);
 
+// Remove generateRoutes and timetableViewRoutes if they contain duplicate logic
 const timetableRoutes = require("./routes/timetable.routes");
-app.use("/api", timetableRoutes);
+app.use("/api/timetable", timetableRoutes);
+
+// Ensure no other route is trying to use /api/timetable
 
 const generateRoutes = require("./routes/generate.routes");
 app.use("/api", generateRoutes);
