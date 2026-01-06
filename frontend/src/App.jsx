@@ -1,43 +1,75 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/login";
 import AdminDashboard from "./pages/admin/dashboard";
-import AdminTimetable from "./pages/admin/timetable";
-import StudentTimetable from "./pages/student/timetable";
-import ProtectedRoute from "./components/ProtectedRoute";
-import TimetablePage from "./components/admin/TimetablePage.jsx";
 import StudentDashboard from "./pages/student/StudentDashboard";
+import FacultyDashboard from "./pages/faculty/FacultyDashboard";
+import StudentTimetable from "./pages/student/timetable";
+import TimetablePage from "./components/admin/TimetablePage.jsx";
+import ProtectedRoute from "./components/ProtectedRoute";
+import FacultyTimetable from "./pages/faculty/timetable";
+
 function App() {
   return (
     <Routes>
+      {/* Public Routes */}
       <Route path="/login" element={<Login />} />
-      
-      {/* Admin Routes */}
-      <Route path="/admin/dashboard" element={
-        <ProtectedRoute allowedRoles={["ADMIN"]}>
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
 
-      <Route path="/admin/timetable" element={
-        <ProtectedRoute allowedRoles={["ADMIN"]}>
-          <TimetablePage />
-        </ProtectedRoute>
-      } />
+      {/* Admin Protected Routes */}
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/timetable"
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <TimetablePage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Student Routes */}
-      <Route path="/student/timetable" element={
-        <ProtectedRoute allowedRoles={["STUDENT"]}>
-          <StudentTimetable />
-        </ProtectedRoute>
-      } />
+      {/* Student Protected Routes */}
+      <Route
+        path="/student/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["STUDENT"]}>
+            <StudentDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/timetable"
+        element={
+          <ProtectedRoute allowedRoles={["STUDENT"]}>
+            <StudentTimetable />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* ADD THE NEW LINE HERE */}
-      <Route path="/student/dashboard" element={
-        <ProtectedRoute allowedRoles={["STUDENT"]}>
-          <StudentDashboard />
-        </ProtectedRoute>
-      } />
+      {/* Faculty Protected Routes */}
+      <Route
+        path="/faculty/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["FACULTY"]}>
+            <FacultyDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/faculty/timetable"
+        element={
+          <ProtectedRoute allowedRoles={["FACULTY"]}>
+            <FacultyTimetable />
+          </ProtectedRoute>
+        }
+      />
 
+      {/* Fallback Routes */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

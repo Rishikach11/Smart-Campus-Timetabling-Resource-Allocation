@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -38,16 +39,18 @@ function Login() {
       localStorage.setItem("token", data.token); 
 
       // Decode the role from the token
-      const decoded = parseJwt(data.token);
+      const decoded = jwtDecode(data.token);
       if (!decoded || !decoded.role) throw new Error("Invalid token data"); 
 
       localStorage.setItem("role", decoded.role);
 
-      // Redirect based on role
+      // DYNAMIC REDIRECTS            
       if (decoded.role === "ADMIN") {
         navigate("/admin/dashboard"); 
-      } else {
-        navigate("/student/timetable"); 
+      } else if (decoded.role === "FACULTY") {
+        navigate("/faculty/dashboard"); 
+      } else if (decoded.role === "STUDENT") {
+        navigate("/student/dashboard"); 
       }
     } catch (err) {
       setError(err.message);

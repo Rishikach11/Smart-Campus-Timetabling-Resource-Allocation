@@ -12,9 +12,9 @@ router.post(
     const batchId = parseInt(req.params.batchId);
 
     try {
-      // Use $transaction to ensure the deletion and creation happen together
       const result = await prisma.$transaction(async (tx) => {
-        
+
+        // 1️⃣ Fetch batch
         const batch = await tx.batch.findUnique({
           where: { id: batchId },
           include: { department: true },
@@ -24,12 +24,13 @@ router.post(
           throw new Error("Batch not found");
         }
 
-        // 1. Clear old timetable for this batch only
+        // 2️⃣ Clear existing timetable
         await tx.timetableEntry.deleteMany({ where: { batchId } });
 
-        // 2. Fetch necessary data using the transaction client 'tx'
+        // 3️⃣ Fetch required data
         const courses = await tx.course.findMany({
           where: { departmentId: batch.departmentId },
+          include: { faculty: true },
         });
 
         const timeSlots = await tx.timeSlot.findMany({
@@ -38,14 +39,21 @@ router.post(
 
         const rooms = await tx.room.findMany();
 
-        const created = [];
-        const report = {};
         const facultyLoad = {};
+        const report = {};
+        const created = [];
 
+        // 4️⃣ Scheduling loop
         for (const course of courses) {
-          // Safety check for Phase 1: Ensure faculty is assigned
-          if (!course.facultyId) {
-            throw new Error(`Course ${course.name} has no faculty assigned.`);
+
+          if (!course.faculty) {
+            throw new Error(`Course ${course.name} has no faculty assigned`);
+          }
+
+          const facultyId = course.faculty.id;
+
+          if (!facultyLoad[facultyId]) {
+            facultyLoad[facultyId] = 0;
           }
 
           report[course.name] = {
@@ -55,16 +63,14 @@ router.post(
           };
 
           let remainingHours = course.weeklyHours;
-          if (!facultyLoad[course.facultyId]) {
-            facultyLoad[course.facultyId] = 0;
-          }
+          const maxLoad = course.faculty.maxWeeklyLoad;
 
-          // ---------------- LAB COURSES (Double Slots) ----------------
+          // 🧪 LAB COURSES (double slot)
           if (course.type === "LAB") {
             const labRooms = rooms.filter(r => r.type === "LAB");
 
             for (let i = 0; i < timeSlots.length - 1; i++) {
-              if (remainingHours <= 0 || facultyLoad[course.facultyId] >= 16) break;
+              if (remainingHours <= 0 || facultyLoad[facultyId] >= maxLoad) break;
 
               const slot1 = timeSlots[i];
               const slot2 = timeSlots[i + 1];
@@ -73,7 +79,7 @@ router.post(
 
               const availability = await tx.facultyAvailability.findMany({
                 where: {
-                  facultyId: course.facultyId,
+                  facultyId,
                   timeSlotId: { in: [slot1.id, slot2.id] },
                 },
               });
@@ -81,46 +87,55 @@ router.post(
               if (availability.length < 2) continue;
 
               const batchBusy = await tx.timetableEntry.findFirst({
-                where: { batchId, timeSlotId: { in: [slot1.id, slot2.id] } },
+                where: {
+                  batchId,
+                  timeSlotId: { in: [slot1.id, slot2.id] },
+                },
               });
               if (batchBusy) continue;
 
               for (const room of labRooms) {
                 const roomBusy = await tx.timetableEntry.findFirst({
-                  where: { roomId: room.id, timeSlotId: { in: [slot1.id, slot2.id] } },
+                  where: {
+                    roomId: room.id,
+                    timeSlotId: { in: [slot1.id, slot2.id] },
+                  },
                 });
                 if (roomBusy) continue;
 
                 await tx.timetableEntry.createMany({
                   data: [
-                    { batchId, courseId: course.id, facultyId: course.facultyId, roomId: room.id, timeSlotId: slot1.id },
-                    { batchId, courseId: course.id, facultyId: course.facultyId, roomId: room.id, timeSlotId: slot2.id },
+                    { batchId, courseId: course.id, facultyId, roomId: room.id, timeSlotId: slot1.id },
+                    { batchId, courseId: course.id, facultyId, roomId: room.id, timeSlotId: slot2.id },
                   ],
                 });
+
+                facultyLoad[facultyId] += 2;
+                remainingHours -= 2;
+                report[course.name].scheduled += 2;
 
                 created.push(
                   { course: course.name, day: slot1.day, time: `${slot1.startTime}-${slot1.endTime}` },
                   { course: course.name, day: slot2.day, time: `${slot2.startTime}-${slot2.endTime}` }
                 );
 
-                remainingHours -= 2;
-                facultyLoad[course.facultyId] += 2;
-                report[course.name].scheduled += 2;
-                break; 
+                break;
               }
             }
           }
 
-          // ---------------- THEORY COURSES (Single Slot) ----------------
+          // 📘 THEORY COURSES (single slot)
           else {
             const days = ["MON", "TUE", "WED", "THU", "FRI"];
+
             for (const day of days) {
-              if (remainingHours <= 0 || facultyLoad[course.facultyId] >= 16) break;
+              if (remainingHours <= 0 || facultyLoad[facultyId] >= maxLoad) break;
 
               const daySlots = timeSlots.filter(s => s.day === day);
+
               for (const slot of daySlots) {
                 const isAvailable = await tx.facultyAvailability.findFirst({
-                  where: { facultyId: course.facultyId, timeSlotId: slot.id },
+                  where: { facultyId, timeSlotId: slot.id },
                 });
                 if (!isAvailable) continue;
 
@@ -136,16 +151,28 @@ router.post(
                   if (roomBusy) continue;
 
                   await tx.timetableEntry.create({
-                    data: { batchId, courseId: course.id, facultyId: course.facultyId, roomId: room.id, timeSlotId: slot.id },
+                    data: {
+                      batchId,
+                      courseId: course.id,
+                      facultyId,
+                      roomId: room.id,
+                      timeSlotId: slot.id,
+                    },
                   });
 
-                  created.push({ course: course.name, day: slot.day, time: `${slot.startTime}-${slot.endTime}` });
+                  facultyLoad[facultyId]++;
                   remainingHours--;
-                  facultyLoad[course.facultyId]++;
                   report[course.name].scheduled++;
-                  break; 
+
+                  created.push({
+                    course: course.name,
+                    day: slot.day,
+                    time: `${slot.startTime}-${slot.endTime}`,
+                  });
+
+                  break;
                 }
-                break; // One theory class per course per day [cite: 38]
+                break; // one theory class per day
               }
             }
           }
@@ -159,7 +186,7 @@ router.post(
       });
 
       res.json({
-        message: "Timetable generation completed successfully",
+        message: "Timetable generated successfully",
         summary: result.report,
         entriesCreated: result.createdCount,
         details: result.created,
@@ -167,9 +194,9 @@ router.post(
 
     } catch (error) {
       console.error("Generation Error:", error.message);
-      res.status(500).json({ 
-        message: "Generation failed. Old timetable restored.", 
-        error: error.message 
+      res.status(500).json({
+        message: "Timetable generation failed",
+        error: error.message,
       });
     }
   }

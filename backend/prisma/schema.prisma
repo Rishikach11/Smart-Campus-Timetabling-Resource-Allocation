@@ -14,13 +14,16 @@ model User {
   password  String
   role      Role
   batchId   Int?
+  facultyId Int?
   batch     Batch?   @relation(fields: [batchId], references: [id])
+  faculty   Faculty? @relation(fields: [facultyId], references: [id])
   createdAt DateTime @default(now())
 }
 
 enum Role {
   ADMIN
   STUDENT
+  FACULTY
 }
 
 model Department {
@@ -79,7 +82,7 @@ model Faculty {
   maxWeeklyLoad  Int      @default(16)
   courses Course[]
   availabilities FacultyAvailability[]
-
+  user User[]
   
 }
 

@@ -1,113 +1,124 @@
 import { useEffect, useState } from "react";
+import Navbar from "../../components/navbar";
 
 function AdminTimetable() {
-  const [batchId, setBatchId] = useState(1);
-  const [timetable, setTimetable] = useState({});
-  const [allTimeSlots, setAllTimeSlots] = useState([]); // Master list
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState({ message: "", type: "" });
+  const token = localStorage.getItem("token");
+  const headers = { Authorization: `Bearer ${token}` };
 
-  const TOKEN = "YOUR_JWT_TOKEN"; // Temporary until Phase 2 Login
+  const [batches, setBatches] = useState([]);
+  const [selectedBatch, setSelectedBatch] = useState("");
+  const [timetable, setTimetable] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  // Fetch both Master Slots and Timetable Data
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch Master Slots (for grid structure)
-      const slotsRes = await fetch("http://localhost:5000/api/timeslots", {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      });
-      const slotsData = await slotsRes.json();
-      
-      // Extract unique time ranges for the Y-axis (e.g., "09:00-10:00")
-      const uniqueTimes = [...new Set(slotsData.map(s => `${s.startTime}-${s.endTime}`))];
-      setAllTimeSlots(uniqueTimes);
-
-      // 2. Fetch Timetable Entries (for grid content)
-      const tableRes = await fetch(`http://localhost:5000/api/timetable/batch/${batchId}`, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      });
-      const tableData = await tableRes.json();
-      setTimetable(tableData || {});
-      
-      setLoading(false);
-    } catch (err) {
-      setStatus({ message: "Error loading data", type: "red" });
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadData(); }, [batchId]);
-
-  const handleGenerate = async () => {
-    setStatus({ message: "Generating...", type: "blue" });
-    try {
-      const res = await fetch(`http://localhost:5000/api/generate/batch/${batchId}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      });
+  // 1️⃣ Load batches
+  useEffect(() => {
+    const fetchBatches = async () => {
+      const res = await fetch("http://localhost:5000/api/batch", { headers });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      
-      setStatus({ message: "Success! Timetable updated ✅", type: "green" });
-      loadData(); // Refresh grid
+      if (res.ok) setBatches(data);
+    };
+    fetchBatches();
+  }, []);
+
+  // 2️⃣ Generate timetable
+  const generateTimetable = async () => {
+    if (!selectedBatch) {
+      setMessage("Please select a batch");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      // Generate
+      const genRes = await fetch(
+        `http://localhost:5000/api/generate/batch/${selectedBatch}`,
+        { method: "POST", headers }
+      );
+
+      const genData = await genRes.json();
+      if (!genRes.ok) {
+        setMessage(genData.error || "Generation failed");
+        setLoading(false);
+        return;
+      }
+
+      // View
+      const viewRes = await fetch(
+        `http://localhost:5000/api/timetable/batch/${selectedBatch}`,
+        { headers }
+      );
+
+      const viewData = await viewRes.json();
+      if (viewData.generated) {
+        setTimetable(viewData.timetable);
+        setMessage("Timetable generated successfully");
+      } else {
+        setTimetable({});
+        setMessage("No timetable generated");
+      }
     } catch (err) {
-      setStatus({ message: err.message, type: "red" });
+      setMessage("Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
-
-  const days = ["MON", "TUE", "WED", "THU", "FRI"]; 
-
-  if (loading) return <h2>Loading System...</h2>;
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2>Admin Control: Batch {batchId}</h2>
-      
-      <button onClick={handleGenerate} style={{ marginBottom: "10px" }}>
-        Generate New Timetable
-      </button>
+      <Navbar />
+      <h1>Admin Timetable</h1>
 
-      {status.message && (
-        <p style={{ color: status.type }}>{status.message}</p>
-      )}
-
-      <select value={batchId} onChange={(e) => setBatchId(Number(e.target.value))}>
-        <option value={1}>Batch 1</option>
-        <option value={2}>Batch 2</option>
-        <option value={3}>Batch 3</option>
-      </select>
-
-      <table border="1" style={{ width: "100%", marginTop: "20px", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Time</th>
-            {days.map(day => <th key={day}>{day}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {allTimeSlots.map(timeRange => (
-            <tr key={timeRange}>
-              <td><strong>{timeRange}</strong></td>
-              {days.map(day => {
-                // Find entry where "09:00-10:00" matches the timeRange
-                const entry = timetable[day]?.find(e => e.time === timeRange);
-                return (
-                  <td key={day} style={{ height: "60px", textAlign: "center" }}>
-                    {entry ? (
-                      <div>
-                        <strong>{entry.course}</strong><br/>
-                        <small>{entry.faculty} | {entry.room}</small><br/>
-                        <span style={{ fontSize: '10px' }}>{entry.type}</span>
-                      </div>
-                    ) : "—"}
-                  </td>
-                );
-              })}
-            </tr>
+      <div style={{ marginBottom: "16px" }}>
+        <select
+          value={selectedBatch}
+          onChange={(e) => setSelectedBatch(e.target.value)}
+        >
+          <option value="">Select Batch</option>
+          {batches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.department.code} - Sem {b.semester}
+            </option>
           ))}
-        </tbody>
-      </table>
+        </select>
+
+        <button onClick={generateTimetable} disabled={loading}>
+          {loading ? "Generating..." : "Generate Timetable"}
+        </button>
+      </div>
+
+      {message && <p>{message}</p>}
+
+      {timetable &&
+        Object.entries(timetable).map(([day, slots]) => (
+          <div key={day} style={{ marginBottom: "20px" }}>
+            <h3>{day}</h3>
+            <table border="1" cellPadding="8">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Course</th>
+                  <th>Faculty</th>
+                  <th>Room</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slots.map((s, i) => (
+                  <tr key={i}>
+                    <td>{s.time}</td>
+                    <td>{s.course}</td>
+                    <td>{s.faculty}</td>
+                    <td>{s.room}</td>
+                    <td>{s.type}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
     </div>
   );
 }

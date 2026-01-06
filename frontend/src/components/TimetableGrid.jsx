@@ -1,3 +1,5 @@
+// Deprecated: grid-based timetable (old data model)
+
 import React from "react";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI"];
@@ -12,6 +14,22 @@ function TimetableGrid({ entries, timeSlots }) {
       `${e.timeSlot.startTime} - ${e.timeSlot.endTime}` === range
     );
   };
+  const renderEntry = (entry) => (
+  <div style={{
+    backgroundColor: "#e3f2fd",
+    padding: "5px",
+    borderRadius: "4px",
+    fontSize: "12px",
+    border: "1px solid #90caf9"
+  }}>
+    <strong>{entry.course.code}</strong><br />
+    {/* Dynamic labeling: Show Batch for Faculty, or Room for Students */}
+    <span style={{ color: "#555" }}>
+       {entry.batch ? `Sem ${entry.batch.semester}` : entry.room.name}
+    </span><br />
+    <small>{entry.room.name}</small>
+  </div>
+);
 
   return (
     <div style={{ marginTop: "40px", overflowX: "auto" }}>

@@ -37,19 +37,11 @@ router.post(
 /**
  * List Batches (ADMIN)
  */
-router.get(
-  "/batches",
-  authenticate,
-  authorizeAdmin,
-  async (req, res) => {
-    const batches = await prisma.batch.findMany({
-      include: {
-        department: true,
-      },
-    });
-
-    res.json(batches);
-  }
-);
+router.get("/batch", authenticate, async (req, res) => {
+  const batches = await prisma.batch.findMany({
+    include: { department: true }
+  });
+  res.json(batches);
+});
 
 module.exports = router;

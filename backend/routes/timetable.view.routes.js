@@ -21,13 +21,24 @@ router.get(
         room: { select: { name: true, type: true } },
         timeSlot: { select: { day: true, startTime: true, endTime: true } },
       },
+      orderBy: [
+        { timeSlot: { day: "asc" } },
+        { timeSlot: { startTime: "asc" } },
+      ],
     });
+
+    if (entries.length === 0) {
+      return res.json({
+        generated: false,
+        timetable: {},
+      });
+    }
 
     const timetable = {};
 
     for (const entry of entries) {
       const day = entry.timeSlot.day;
-      const time = `${entry.timeSlot.startTime}-${entry.timeSlot.endTime}`;
+      const time = `${entry.timeSlot.startTime} - ${entry.timeSlot.endTime}`;
 
       if (!timetable[day]) {
         timetable[day] = [];
@@ -42,7 +53,10 @@ router.get(
       });
     }
 
-    res.json(timetable);
+    res.json({
+      generated: true,
+      timetable,
+    });
   }
 );
 

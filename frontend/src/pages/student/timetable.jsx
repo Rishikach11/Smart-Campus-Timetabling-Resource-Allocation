@@ -1,62 +1,74 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../../components/navbar";
-import TimetableGrid from "../../components/TimetableGrid"; 
-import { jwtDecode } from "jwt-decode"; // Ensure this is installed: npm install jwt-decode
 
 function StudentTimetable() {
-  const [entries, setEntries] = useState([]);
-  const [timeSlots, setTimeSlots] = useState([]);
   const token = localStorage.getItem("token");
-  
-  // 1. Get the real batchId from the token payload
-  let studentBatchId = null;
-  if (token) {
-    try {
-      const decoded = jwtDecode(token);
-      studentBatchId = decoded.batchId;
-    } catch (e) {
-      console.error("Invalid token");
-    }
-  }
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // TEMP: hardcoded batchId (same as admin tested)
+  const batchId = 36;
+
+  const [timetable, setTimetable] = useState(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    // 2. Only fetch if we successfully found a batchId in the token
-    if (!studentBatchId || !token) return;
-
-    const fetchData = async () => {
-      const headers = { Authorization: `Bearer ${token}` };
+    const fetchTimetable = async () => {
       try {
-        const [slotsRes, entriesRes] = await Promise.all([
-          fetch("http://localhost:5000/api/timetable/timeslots", { headers }),
-          fetch(`http://localhost:5000/api/timetable/batch/${studentBatchId}`, { headers })
-        ]);
-        
-        const slots = await slotsRes.json();
-        const ent = await entriesRes.json();
-        
-        if (slotsRes.ok) setTimeSlots(Array.isArray(slots) ? slots : []);
-        if (entriesRes.ok) setEntries(Array.isArray(ent) ? ent : []);
+        const res = await fetch(
+          `http://localhost:5000/api/timetable/batch/${batchId}`,
+          { headers }
+        );
+
+        const data = await res.json();
+
+        if (data.generated) {
+          setTimetable(data.timetable);
+        } else {
+          setMessage("Timetable not generated yet");
+        }
       } catch (err) {
-        console.error("Fetch failed:", err);
+        setMessage("Failed to load timetable");
       }
     };
-    fetchData();
-  }, [token, studentBatchId]);
 
-  // 3. Determine the Semester label dynamically from the data
-  const semesterLabel = entries.length > 0 ? entries[0]?.batch?.semester : "Unknown";
+    fetchTimetable();
+  }, []);
 
   return (
     <div style={{ padding: "20px" }}>
       <Navbar />
-      <h1>My Class Schedule</h1>
-      {studentBatchId ? (
-        <p>Viewing timetable for Semester {semesterLabel}</p>
-      ) : (
-        <p style={{ color: "red" }}>Error: No Batch Assigned. Please contact Admin.</p>
-      )}
-      
-      <TimetableGrid entries={entries} timeSlots={timeSlots} />
+      <h1>My Timetable</h1>
+
+      {message && <p>{message}</p>}
+
+      {timetable &&
+        Object.entries(timetable).map(([day, slots]) => (
+          <div key={day} style={{ marginBottom: "20px" }}>
+            <h3>{day}</h3>
+            <table border="1" cellPadding="8">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Course</th>
+                  <th>Faculty</th>
+                  <th>Room</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slots.map((s, i) => (
+                  <tr key={i}>
+                    <td>{s.time}</td>
+                    <td>{s.course}</td>
+                    <td>{s.faculty}</td>
+                    <td>{s.room}</td>
+                    <td>{s.type}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
     </div>
   );
 }
