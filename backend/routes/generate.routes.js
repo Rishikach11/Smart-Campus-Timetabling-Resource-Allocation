@@ -14,20 +14,15 @@ router.post(
     try {
       const result = await prisma.$transaction(async (tx) => {
 
-        // 1️⃣ Fetch batch
         const batch = await tx.batch.findUnique({
           where: { id: batchId },
           include: { department: true },
         });
 
-        if (!batch) {
-          throw new Error("Batch not found");
-        }
+        if (!batch) throw new Error("Batch not found");
 
-        // 2️⃣ Clear existing timetable
         await tx.timetableEntry.deleteMany({ where: { batchId } });
 
-        // 3️⃣ Fetch required data
         const courses = await tx.course.findMany({
           where: { departmentId: batch.departmentId },
           include: { faculty: true },
@@ -43,7 +38,6 @@ router.post(
         const report = {};
         const created = [];
 
-        // 4️⃣ Scheduling loop
         for (const course of courses) {
 
           if (!course.faculty) {
@@ -51,10 +45,7 @@ router.post(
           }
 
           const facultyId = course.faculty.id;
-
-          if (!facultyLoad[facultyId]) {
-            facultyLoad[facultyId] = 0;
-          }
+          facultyLoad[facultyId] ??= 0;
 
           report[course.name] = {
             required: course.weeklyHours,
@@ -65,7 +56,7 @@ router.post(
           let remainingHours = course.weeklyHours;
           const maxLoad = course.faculty.maxWeeklyLoad;
 
-          // 🧪 LAB COURSES (double slot)
+          // ================= LAB COURSES =================
           if (course.type === "LAB") {
             const labRooms = rooms.filter(r => r.type === "LAB");
 
@@ -74,7 +65,6 @@ router.post(
 
               const slot1 = timeSlots[i];
               const slot2 = timeSlots[i + 1];
-
               if (slot1.day !== slot2.day) continue;
 
               const availability = await tx.facultyAvailability.findMany({
@@ -83,7 +73,6 @@ router.post(
                   timeSlotId: { in: [slot1.id, slot2.id] },
                 },
               });
-
               if (availability.length < 2) continue;
 
               const batchBusy = await tx.timetableEntry.findFirst({
@@ -93,6 +82,15 @@ router.post(
                 },
               });
               if (batchBusy) continue;
+
+              // 🔴 FACULTY CONFLICT CHECK (GLOBAL)
+              const facultyBusy = await tx.timetableEntry.findFirst({
+                where: {
+                  facultyId,
+                  timeSlotId: { in: [slot1.id, slot2.id] },
+                },
+              });
+              if (facultyBusy) continue;
 
               for (const room of labRooms) {
                 const roomBusy = await tx.timetableEntry.findFirst({
@@ -118,13 +116,12 @@ router.post(
                   { course: course.name, day: slot1.day, time: `${slot1.startTime}-${slot1.endTime}` },
                   { course: course.name, day: slot2.day, time: `${slot2.startTime}-${slot2.endTime}` }
                 );
-
                 break;
               }
             }
           }
 
-          // 📘 THEORY COURSES (single slot)
+          // ================= THEORY COURSES =================
           else {
             const days = ["MON", "TUE", "WED", "THU", "FRI"];
 
@@ -143,6 +140,12 @@ router.post(
                   where: { batchId, timeSlotId: slot.id },
                 });
                 if (batchBusy) continue;
+
+                // 🔴 FACULTY CONFLICT CHECK (GLOBAL)
+                const facultyBusy = await tx.timetableEntry.findFirst({
+                  where: { facultyId, timeSlotId: slot.id },
+                });
+                if (facultyBusy) continue;
 
                 for (const room of rooms.filter(r => r.type === "CLASSROOM")) {
                   const roomBusy = await tx.timetableEntry.findFirst({
@@ -172,7 +175,7 @@ router.post(
 
                   break;
                 }
-                break; // one theory class per day
+                break;
               }
             }
           }

@@ -5,38 +5,14 @@ function FacultyTimetable() {
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
 
-  const [facultyId, setFacultyId] = useState(null);
   const [timetable, setTimetable] = useState(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState("Loading timetable...");
 
-  // 1️⃣ Fetch logged-in faculty ID
   useEffect(() => {
-    const fetchFacultyId = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/me", { headers });
-        const user = await res.json();
-
-        if (user.faculty?.id) {
-          setFacultyId(user.faculty.id);
-        } else {
-          setMessage("Faculty profile not found");
-        }
-      } catch {
-        setMessage("Failed to identify faculty");
-      }
-    };
-
-    fetchFacultyId();
-  }, []);
-
-  // 2️⃣ Fetch timetable AFTER facultyId is available
-  useEffect(() => {
-    if (!facultyId) return;
-
     const fetchTimetable = async () => {
       try {
         const res = await fetch(
-          `http://localhost:5000/api/timetable/faculty/${facultyId}`,
+          "http://localhost:5000/api/timetable/faculty",
           { headers }
         );
 
@@ -55,7 +31,7 @@ function FacultyTimetable() {
     };
 
     fetchTimetable();
-  }, [facultyId]); // 🔥 THIS is the key fix
+  }, []);
 
   return (
     <div style={{ padding: "20px" }}>
@@ -75,6 +51,7 @@ function FacultyTimetable() {
                   <th>Course</th>
                   <th>Room</th>
                   <th>Type</th>
+                  <th>Batch</th>
                 </tr>
               </thead>
               <tbody>
@@ -84,6 +61,7 @@ function FacultyTimetable() {
                     <td>{s.course}</td>
                     <td>{s.room}</td>
                     <td>{s.type}</td>
+                    <td>{s.batch}</td>
                   </tr>
                 ))}
               </tbody>

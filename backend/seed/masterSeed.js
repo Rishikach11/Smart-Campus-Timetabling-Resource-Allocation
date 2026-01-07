@@ -1,117 +1,147 @@
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
+
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("🚀 Starting Master Seed...");
+// Import seed data
+const departments = require("./data/departments");
+const batches = require("./data/batches");
+const facultyData = require("./data/faculty");
+const courses = require("./data/courses");
+const timeSlots = require("./data/timeslots");
+const availability = require("./data/availability");
+const users = require("./data/users");
+const rooms = require("./data/rooms");
 
-  console.log("🧹 Nuking existing data...");
+async function main() {
+  console.log("🌱 Starting Master Seed (Dataset B)");
+
+  // ----------------------------------
+  // CLEAN DATABASE (SAFE ORDER)
+  // ----------------------------------
   await prisma.timetableEntry.deleteMany();
+  await prisma.facultyAvailability.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.batch.deleteMany();
-  await prisma.faculty.deleteMany();
   await prisma.course.deleteMany();
-  await prisma.room.deleteMany();
+  await prisma.faculty.deleteMany();
+  await prisma.batch.deleteMany();
   await prisma.department.deleteMany();
   await prisma.timeSlot.deleteMany();
+  await prisma.room.deleteMany();
 
+  // ----------------------------------
+  // DEPARTMENTS
+  // ----------------------------------
+  await prisma.department.createMany({ data: departments });
+  const deptRows = await prisma.department.findMany();
+
+  const deptMap = {};
+  deptRows.forEach((d) => (deptMap[d.code] = d.id));
+
+  
+  // ----------------------------------
+  // ROOMS
+  // ----------------------------------
+  await prisma.room.createMany({ data: rooms });
+
+
+  // ----------------------------------
+  // BATCHES
+  // ----------------------------------
+  await prisma.batch.createMany({
+    data: batches.map((b) => ({
+      semester: b.semester,
+      size: b.size,
+      departmentId: deptMap[b.department],
+    })),
+  });
+
+  const batchRows = await prisma.batch.findMany();
+
+  // ----------------------------------
+  // FACULTY
+  // ----------------------------------
+  await prisma.faculty.createMany({
+    data: facultyData.map((f) => ({
+      name: f.name,
+      email: f.email,
+      departmentId: deptMap[f.department],
+      maxLoad: f.maxLoad,
+      maxWeeklyLoad: f.maxWeeklyLoad,
+    })),
+  });
+
+  const facultyRows = await prisma.faculty.findMany();
+  const facultyMap = {};
+  facultyRows.forEach((f) => (facultyMap[f.name] = f.id));
+
+  // ----------------------------------
+  // COURSES
+  // ----------------------------------
+  await prisma.course.createMany({
+    data: courses.map((c) => ({
+      name: c.name,
+      code: c.code,
+      type: c.type,
+      weeklyHours: c.weeklyHours,
+      facultyId: facultyMap[c.faculty],
+      departmentId: deptMap[c.department],
+    })),
+  });
+
+  // ----------------------------------
+  // TIMESLOTS
+  // ----------------------------------
+  await prisma.timeSlot.createMany({ data: timeSlots });
+  const slotRows = await prisma.timeSlot.findMany();
+
+  // ----------------------------------
+  // FACULTY AVAILABILITY
+  // ----------------------------------
+  await prisma.facultyAvailability.createMany({
+    data: availability.flatMap((a) => {
+      const facultyId = facultyMap[a.faculty];
+      return slotRows
+        .filter(
+          (s) =>
+            a.days.includes(s.day) &&
+            a.slots.includes(s.startTime)
+        )
+        .map((s) => ({
+          facultyId,
+          timeSlotId: s.id,
+        }));
+    }),
+  });
+
+  // ----------------------------------
+  // USERS
+  // ----------------------------------
   const hashedPassword = await bcrypt.hash("password123", 10);
 
-  console.log("🏗️ Creating Core Structure...");
-  const dept = await prisma.department.create({ 
-    data: { name: "Computer Science", code: "CS" } 
+  await prisma.user.createMany({
+    data: users.map((u) => ({
+      name: u.name,
+      email: u.email,
+      password: hashedPassword,
+      role: u.role,
+      facultyId: u.faculty ? facultyMap[u.faculty] : null,
+      batchId: u.batch
+        ? batchRows.find(
+            (b) =>
+              b.semester === u.batch.semester &&
+              deptMap[u.batch.department] === b.departmentId
+          )?.id
+        : null,
+    })),
   });
 
-  const drSharma = await prisma.faculty.create({
-    data: { 
-      name: "Dr. Sharma", 
-      email: "sharma@test.com", 
-      maxLoad: 18, 
-      maxWeeklyLoad: 16,
-      departmentId: dept.id 
-    }
-  });
-
-  const batch3 = await prisma.batch.create({
-    data: { semester: 3, size: 60, departmentId: dept.id }
-  });
-
-  console.log("📅 Creating TimeSlots...");
-  const days = ["MON", "TUE", "WED", "THU", "FRI"];
-  const times = [
-    { start: "09:00", end: "10:00" },
-    { start: "10:00", end: "11:00" },
-    { start: "11:00", end: "12:00" },
-    { start: "12:00", end: "13:00" },
-    { start: "14:00", end: "15:00" },
-    { start: "15:00", end: "16:00" },
-  ];
-
-  for (const day of days) {
-    for (const time of times) {
-      await prisma.timeSlot.create({
-        data: { day, startTime: time.start, endTime: time.end }
-      });
-    }
-  }
-
-  console.log("🏫 Creating Rooms and Courses...");
-  await prisma.room.create({
-    data: { 
-      name: "C-101", 
-      capacity: 60,
-      type: "CLASSROOM",
-      isLab: false 
-    }
-  });
-
-  // REMOVED 'credits' because it is not in your schema
-  await prisma.course.create({
-    data: { 
-      name: "Data Structures", 
-      code: "CS201", 
-      departmentId: dept.id,
-      type: "THEORY",
-      weeklyHours: 4 
-    }
-  });
-
-  console.log("👤 Creating Users...");
-  await prisma.user.create({
-    data: { 
-      name: "Dr. Sharma", 
-      email: "sharma@test.com", 
-      password: hashedPassword, 
-      role: "FACULTY", 
-      facultyId: drSharma.id 
-    }
-  });
-
-  await prisma.user.create({
-    data: { 
-      name: "Student Test", 
-      email: "student@test.com", 
-      password: hashedPassword, 
-      role: "STUDENT", 
-      batchId: batch3.id 
-    }
-  });
-
-  await prisma.user.create({
-    data: { 
-      name: "Admin", 
-      email: "admin@test.com", 
-      password: hashedPassword, 
-      role: "ADMIN" 
-    }
-  });
-
-  console.log("✅ Seed successful!");
+  console.log("✅ Seed completed successfully (Dataset B)");
 }
 
 main()
-  .catch((e) => {
-    console.error("❌ Seed Error:", e);
+  .catch((err) => {
+    console.error("❌ Seed failed:", err);
     process.exit(1);
   })
   .finally(async () => {

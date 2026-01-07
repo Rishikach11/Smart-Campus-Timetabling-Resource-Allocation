@@ -1,60 +1,61 @@
 const express = require("express");
-const prisma = require("../prismaClient");
-const { authenticate, authorizeAdmin } = require("../middlewares/auth.middleware");
-
 const router = express.Router();
+const prisma = require("../prismaClient");
+const { authenticate } = require("../middlewares/auth.middleware");
 
-/**
- * Create Faculty (ADMIN)
- */
-router.post(
-  "/faculty",
-  authenticate,
-  authorizeAdmin,
-  async (req, res) => {
-    try {
-      const { name, email, maxLoad, departmentId } = req.body;
+router.get("/timetable/faculty", authenticate, async (req, res) => {
+  try {
+    // 🔑 facultyId must come from auth, not params
+    const facultyId = req.user.facultyId;
 
-      if (!name || !email || !maxLoad || !departmentId) {
-        return res.status(400).json({ message: "All fields are required" });
-      }
-
-      const faculty = await prisma.faculty.create({
-        data: {
-          name,
-          email,
-          maxLoad,
-          departmentId,
-          maxLoad: maxLoad ?? 16,
-        },
-      });
-
-      res.status(201).json(faculty);
-    } catch (error) {
-      if (error.code === "P2002") {
-        return res.status(409).json({ message: "Faculty email already exists" });
-      }
-      res.status(500).json({ message: "Failed to create faculty" });
+    if (!facultyId) {
+      return res.json({ generated: false, timetable: {} });
     }
-  }
-);
 
-/**
- * List Faculty (ADMIN)
- */
-router.get(
-  "/faculty",
-  authenticate,
-  authorizeAdmin,
-  async (req, res) => {
-    const faculty = await prisma.faculty.findMany({
+    const entries = await prisma.timetableEntry.findMany({
+      where: { facultyId },
       include: {
-        department: true,
+        course: true,
+        room: true,
+        timeSlot: true,
+        batch: {
+          include: {
+            department: true,
+          },
+        },
       },
+      orderBy: [
+        { timeSlot: { day: "asc" } },
+        { timeSlot: { startTime: "asc" } },
+      ],
     });
 
-    res.json(faculty);
+    if (entries.length === 0) {
+      return res.json({ generated: false, timetable: {} });
+    }
+
+    const timetable = {};
+
+    entries.forEach((e) => {
+      const day = e.timeSlot.day;
+      if (!timetable[day]) timetable[day] = [];
+
+      timetable[day].push({
+        time: `${e.timeSlot.startTime} - ${e.timeSlot.endTime}`,
+        course: e.course.name,
+        room: e.room.name,
+        type: e.course.type,
+        batch: `${e.batch.department.code} Sem ${e.batch.semester}`,
+      });
+    });
+
+    res.json({ generated: true, timetable });
+  } catch (error) {
+    console.error("Faculty timetable error:", error);
+    res.status(500).json({
+      message: "Failed to fetch faculty timetable",
+    });
   }
-);
+});
 
 module.exports = router;
