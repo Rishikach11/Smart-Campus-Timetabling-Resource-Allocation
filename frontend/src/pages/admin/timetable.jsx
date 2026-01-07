@@ -14,9 +14,13 @@ function AdminTimetable() {
   // 1️⃣ Load batches
   useEffect(() => {
     const fetchBatches = async () => {
-      const res = await fetch("http://localhost:5000/api/batch", { headers });
-      const data = await res.json();
-      if (res.ok) setBatches(data);
+      try {
+        const res = await fetch("http://localhost:5000/api/batch", { headers });
+        const data = await res.json();
+        if (res.ok) setBatches(data);
+      } catch (err) {
+        setMessage("Failed to load batches");
+      }
     };
     fetchBatches();
   }, []);
@@ -32,7 +36,6 @@ function AdminTimetable() {
     setMessage("");
 
     try {
-      // Generate
       const genRes = await fetch(
         `http://localhost:5000/api/generate/batch/${selectedBatch}`,
         { method: "POST", headers }
@@ -45,7 +48,6 @@ function AdminTimetable() {
         return;
       }
 
-      // View
       const viewRes = await fetch(
         `http://localhost:5000/api/timetable/batch/${selectedBatch}`,
         { headers }
@@ -56,11 +58,52 @@ function AdminTimetable() {
         setTimetable(viewData.timetable);
         setMessage("Timetable generated successfully");
       } else {
-        setTimetable({});
+        setTimetable(null);
         setMessage("No timetable generated");
       }
     } catch (err) {
-      setMessage("Something went wrong");
+      setMessage("Something went wrong during generation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 3️⃣ Reset timetable (ADMIN ONLY)
+  const resetTimetable = async () => {
+    if (!selectedBatch) {
+      setMessage("Please select a batch first");
+      return;
+    }
+
+    const confirmReset = window.confirm(
+      "This will DELETE the entire timetable for this batch.\n\nDo you want to continue?"
+    );
+
+    if (!confirmReset) return;
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/timetable/batch/${selectedBatch}`,
+        { method: "DELETE", headers }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.message || "Failed to reset timetable");
+        setLoading(false);
+        return;
+      }
+
+      setTimetable(null);
+      setMessage(
+        `Timetable reset successfully. Deleted ${data.deleted} entries.`
+      );
+    } catch (err) {
+      setMessage("Error resetting timetable");
     } finally {
       setLoading(false);
     }
@@ -86,6 +129,14 @@ function AdminTimetable() {
 
         <button onClick={generateTimetable} disabled={loading}>
           {loading ? "Generating..." : "Generate Timetable"}
+        </button>
+
+        <button
+          onClick={resetTimetable}
+          disabled={loading}
+          style={{ marginLeft: "10px", color: "red" }}
+        >
+          Reset Timetable
         </button>
       </div>
 

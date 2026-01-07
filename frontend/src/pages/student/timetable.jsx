@@ -5,21 +5,36 @@ function StudentTimetable() {
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
 
-  // TEMP: hardcoded batchId (same as admin tested)
-  const batchId = 36;
-
   const [timetable, setTimetable] = useState(null);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTimetable = async () => {
+    const fetchStudentTimetable = async () => {
       try {
-        const res = await fetch(
+        const meRes = await fetch("http://localhost:5000/api/me", { headers });
+        const user = await meRes.json();
+
+        if (user.role !== "STUDENT") {
+          setMessage("Unauthorized access");
+          setLoading(false);
+          return;
+        }
+
+        if (!user.batch || !user.batch.id) {
+          setMessage("No batch assigned to student");
+          setLoading(false);
+          return;
+        }
+
+        const batchId = user.batch.id;
+
+        const ttRes = await fetch(
           `http://localhost:5000/api/timetable/batch/${batchId}`,
           { headers }
         );
 
-        const data = await res.json();
+        const data = await ttRes.json();
 
         if (data.generated) {
           setTimetable(data.timetable);
@@ -28,11 +43,22 @@ function StudentTimetable() {
         }
       } catch (err) {
         setMessage("Failed to load timetable");
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchTimetable();
+    fetchStudentTimetable();
   }, []);
+
+  if (loading) {
+    return (
+      <div style={{ padding: "20px" }}>
+        <Navbar />
+        <p>Loading timetable...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "20px" }}>
