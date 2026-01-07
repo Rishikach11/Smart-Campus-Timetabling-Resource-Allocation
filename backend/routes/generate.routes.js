@@ -35,6 +35,10 @@ router.post(
         const rooms = await tx.room.findMany();
 
         const facultyLoad = {};
+        const facultyDayLoad = {};
+        const batchDayLoad = {};
+        const coursePreferredRoom = {};
+
         const report = {};
         const created = [];
 
@@ -46,6 +50,8 @@ router.post(
 
           const facultyId = course.faculty.id;
           facultyLoad[facultyId] ??= 0;
+          facultyDayLoad[facultyId] ??= {};
+          batchDayLoad[batchId] ??= {};
 
           report[course.name] = {
             required: course.weeklyHours,
@@ -56,7 +62,7 @@ router.post(
           let remainingHours = course.weeklyHours;
           const maxLoad = course.faculty.maxWeeklyLoad;
 
-          // ================= LAB COURSES =================
+          // ================= LAB COURSES (UNCHANGED) =================
           if (course.type === "LAB") {
             const labRooms = rooms.filter(r => r.type === "LAB");
 
@@ -83,7 +89,6 @@ router.post(
               });
               if (batchBusy) continue;
 
-              // 🔴 FACULTY CONFLICT CHECK (GLOBAL)
               const facultyBusy = await tx.timetableEntry.findFirst({
                 where: {
                   facultyId,
@@ -121,7 +126,7 @@ router.post(
             }
           }
 
-          // ================= THEORY COURSES =================
+          // ================= THEORY COURSES (UPGRADED) =================
           else {
             const days = ["MON", "TUE", "WED", "THU", "FRI"];
 
@@ -129,6 +134,7 @@ router.post(
               if (remainingHours <= 0 || facultyLoad[facultyId] >= maxLoad) break;
 
               const daySlots = timeSlots.filter(s => s.day === day);
+              const validSlots = [];
 
               for (const slot of daySlots) {
                 const isAvailable = await tx.facultyAvailability.findFirst({
@@ -141,7 +147,6 @@ router.post(
                 });
                 if (batchBusy) continue;
 
-                // 🔴 FACULTY CONFLICT CHECK (GLOBAL)
                 const facultyBusy = await tx.timetableEntry.findFirst({
                   where: { facultyId, timeSlotId: slot.id },
                 });
@@ -153,30 +158,64 @@ router.post(
                   });
                   if (roomBusy) continue;
 
-                  await tx.timetableEntry.create({
-                    data: {
-                      batchId,
-                      courseId: course.id,
-                      facultyId,
-                      roomId: room.id,
-                      timeSlotId: slot.id,
-                    },
-                  });
-
-                  facultyLoad[facultyId]++;
-                  remainingHours--;
-                  report[course.name].scheduled++;
-
-                  created.push({
-                    course: course.name,
-                    day: slot.day,
-                    time: `${slot.startTime}-${slot.endTime}`,
-                  });
-
-                  break;
+                  validSlots.push({ slot, room });
                 }
-                break;
               }
+
+              if (validSlots.length === 0) continue;
+
+              let best = null;
+              let bestScore = Infinity;
+
+              for (const candidate of validSlots) {
+                let score = 0;
+
+                const fLoad = facultyDayLoad[facultyId][day] ?? 0;
+                if (fLoad === 1) score += 1;
+                if (fLoad >= 2) score += 3;
+
+                const bLoad = batchDayLoad[batchId][day] ?? 0;
+                if (bLoad === 0) score += 2;
+
+                const preferredRoom = coursePreferredRoom[course.id];
+                if (preferredRoom && preferredRoom !== candidate.room.id) {
+                  score += 1;
+                }
+
+                if (score < bestScore) {
+                  bestScore = score;
+                  best = candidate;
+                }
+              }
+
+              if (!best) continue;
+
+              await tx.timetableEntry.create({
+                data: {
+                  batchId,
+                  courseId: course.id,
+                  facultyId,
+                  roomId: best.room.id,
+                  timeSlotId: best.slot.id,
+                },
+              });
+
+              facultyLoad[facultyId]++;
+              remainingHours--;
+              report[course.name].scheduled++;
+
+              facultyDayLoad[facultyId][day] = (facultyDayLoad[facultyId][day] ?? 0) + 1;
+              batchDayLoad[batchId][day] = (batchDayLoad[batchId][day] ?? 0) + 1;
+
+              coursePreferredRoom[course.id] ??= best.room.id;
+
+              created.push({
+                course: course.name,
+                day,
+                time: `${best.slot.startTime}-${best.slot.endTime}`,
+              });
+
+              break;
             }
           }
 

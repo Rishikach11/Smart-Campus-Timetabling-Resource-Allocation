@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Navbar from "../../components/navbar";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function FacultyTimetable() {
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
@@ -12,7 +14,7 @@ function FacultyTimetable() {
     const fetchTimetable = async () => {
       try {
         const res = await fetch(
-          "http://localhost:5000/api/timetable/faculty",
+          `${API_URL}/api/timetable/faculty`,
           { headers }
         );
 
@@ -22,8 +24,7 @@ function FacultyTimetable() {
           setTimetable(data.timetable);
           setMessage("");
         } else {
-          setTimetable(null);
-          setMessage("No timetable assigned yet");
+          setMessage("📭 No classes assigned yet");
         }
       } catch {
         setMessage("Failed to load timetable");
@@ -43,7 +44,7 @@ function FacultyTimetable() {
       {timetable &&
         Object.entries(timetable).map(([day, slots]) => (
           <div key={day} style={{ marginBottom: "20px" }}>
-            <h3>{day}</h3>
+            <h3 style={{ marginTop: "20px" }}>{day}</h3>
             <table border="1" cellPadding="8">
               <thead>
                 <tr>

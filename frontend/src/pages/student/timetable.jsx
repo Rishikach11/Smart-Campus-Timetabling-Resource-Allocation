@@ -1,64 +1,38 @@
 import { useEffect, useState } from "react";
 import Navbar from "../../components/navbar";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function StudentTimetable() {
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
 
   const [timetable, setTimetable] = useState(null);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("Loading timetable...");
 
   useEffect(() => {
-    const fetchStudentTimetable = async () => {
+    const fetchTimetable = async () => {
       try {
-        const meRes = await fetch("http://localhost:5000/api/me", { headers });
-        const user = await meRes.json();
-
-        if (user.role !== "STUDENT") {
-          setMessage("Unauthorized access");
-          setLoading(false);
-          return;
-        }
-
-        if (!user.batch || !user.batch.id) {
-          setMessage("No batch assigned to student");
-          setLoading(false);
-          return;
-        }
-
-        const batchId = user.batch.id;
-
-        const ttRes = await fetch(
-          `http://localhost:5000/api/timetable/batch/${batchId}`,
+        const res = await fetch(
+          `${API_URL}/api/timetable/batch`,
           { headers }
         );
 
-        const data = await ttRes.json();
+        const data = await res.json();
 
         if (data.generated) {
           setTimetable(data.timetable);
+          setMessage("");
         } else {
-          setMessage("Timetable not generated yet");
+          setMessage("⏳ Waiting for admin to generate timetable");
         }
-      } catch (err) {
+      } catch {
         setMessage("Failed to load timetable");
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchStudentTimetable();
+    fetchTimetable();
   }, []);
-
-  if (loading) {
-    return (
-      <div style={{ padding: "20px" }}>
-        <Navbar />
-        <p>Loading timetable...</p>
-      </div>
-    );
-  }
 
   return (
     <div style={{ padding: "20px" }}>
@@ -76,7 +50,6 @@ function StudentTimetable() {
                 <tr>
                   <th>Time</th>
                   <th>Course</th>
-                  <th>Faculty</th>
                   <th>Room</th>
                   <th>Type</th>
                 </tr>
@@ -86,7 +59,6 @@ function StudentTimetable() {
                   <tr key={i}>
                     <td>{s.time}</td>
                     <td>{s.course}</td>
-                    <td>{s.faculty}</td>
                     <td>{s.room}</td>
                     <td>{s.type}</td>
                   </tr>
