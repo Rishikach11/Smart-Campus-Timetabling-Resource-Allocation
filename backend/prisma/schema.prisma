@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  batchId   Int?
+  facultyId Int?
+  batch     Batch?   @relation(fields: [batchId], references: [id])
+  faculty   Faculty? @relation(fields: [facultyId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+  FACULTY
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String   @unique
+  courses   Course[]
+  faculty   Faculty[]
+  batches   Batch[]
+  createdAt DateTime @default(now())
+}
+
+enum CourseType {
+  THEORY
+  LAB
+}
+
+enum RoomType {
+  CLASSROOM
+  LAB
+}
+
+enum Day {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+}
+
+
+model Course {
+  id           Int        @id @default(autoincrement())
+  name         String
+  code         String     @unique
+  type         CourseType
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  timetable    TimetableEntry[]
+  createdAt    DateTime   @default(now())
+  facultyId Int?
+  weeklyHours  Int       @default(4)
+  faculty   Faculty? @relation(fields: [facultyId], references: [id])
+
+}
+
+model Faculty {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  maxLoad      Int
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  timetable    TimetableEntry[]
+  createdAt    DateTime   @default(now())
+  maxWeeklyLoad  Int      @default(16)
+  courses Course[]
+  availabilities FacultyAvailability[]
+  user User[]
+  
+}
+
+model Batch {
+  id           Int        @id @default(autoincrement())
+  semester     Int
+  size         Int
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  timetable    TimetableEntry[]
+  users        User[]
+  createdAt    DateTime   @default(now())
+}
+
+model Room {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  type      RoomType
+  capacity  Int
+  isLab     Boolean  @default(false)
+  timetable    TimetableEntry[]
+  createdAt DateTime @default(now())
+}
+
+model TimeSlot {
+  id        Int   @id @default(autoincrement())
+  day       Day
+  startTime String
+  endTime   String
+  timetable    TimetableEntry[]
+  facultyAvailabilities FacultyAvailability[]
+
+}
+
+model TimetableEntry {
+  id          Int      @id @default(autoincrement())
+
+  batchId     Int
+  courseId    Int
+  facultyId   Int
+  roomId      Int
+  timeSlotId  Int
+
+  batch       Batch     @relation(fields: [batchId], references: [id])
+  course      Course    @relation(fields: [courseId], references: [id])
+  faculty     Faculty   @relation(fields: [facultyId], references: [id])
+  room        Room      @relation(fields: [roomId], references: [id])
+  timeSlot    TimeSlot  @relation(fields: [timeSlotId], references: [id])
+
+  createdAt   DateTime  @default(now())
+
+  @@unique([batchId, timeSlotId])
+  @@unique([facultyId, timeSlotId])
+  @@unique([roomId, timeSlotId])
+}
+model FacultyAvailability {
+  id          Int      @id @default(autoincrement())
+
+  facultyId   Int
+  timeSlotId  Int
+
+  faculty     Faculty   @relation(fields: [facultyId], references: [id])
+  timeSlot    TimeSlot  @relation(fields: [timeSlotId], references: [id])
+
+  @@unique([facultyId, timeSlotId])
+}
+
