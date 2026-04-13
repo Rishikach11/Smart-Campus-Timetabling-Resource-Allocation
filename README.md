@@ -6,6 +6,19 @@ The core engine enforces hard scheduling constraints (faculty availability, room
 
 ---
 
+## 🌐 Live Demo
+
+- Frontend: https://smart-campus-timetabling-resource-allocat-rishikach11s-projects.vercel.app/
+- Backend: https://smart-campus-timetabling-resource.onrender.com
+
+## 🚀 Live System Highlights
+
+- Fully deployed full-stack system (Frontend + Backend + Database)
+- Constraint-based scheduling engine running in production
+- Role-based access (Admin / Faculty / Student)
+- Backend deployed on Render, frontend on Vercel, database on Neon PostgreSQL
+- Handles real-world constraints like faculty availability, room conflicts, and lab scheduling
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -115,12 +128,12 @@ npm run dev       # http://localhost:5173
 PORT=5000
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/smart_campus"
 JWT_SECRET=replace_with_a_long_random_secret
-CORS_ORIGIN=http://localhost:5173
+CORS_ORIGIN=https://smart-campus-timetabling-resource-allocat-rishikach11s-projects.vercel.app
 ```
 
 **`frontend/.env`**
 ```env
-VITE_API_URL=http://localhost:5000
+VITE_API_URL=https://smart-campus-timetabling-resource.onrender.com
 ```
 
 ---
