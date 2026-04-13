@@ -1,8 +1,6 @@
 const express = require("express");
-const { PrismaClient } = require("@prisma/client");
+const prisma = require("../prismaClient");
 const { authenticate, authorizeAdmin } = require("../middlewares/auth.middleware");
-
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Add New Faculty

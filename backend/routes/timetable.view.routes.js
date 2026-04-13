@@ -5,13 +5,17 @@ const { authenticate } = require("../middlewares/auth.middleware");
 const router = express.Router();
 
 /**
- * View timetable for a batch (grouped by day)
+ * View timetable for a batch (grouped by day).
+ * Accessible by any authenticated user — students see their own batch,
+ * faculty see any batch, admins preview any batch.
  */
-router.get(
-  "/timetable/batch/:batchId",
-  authenticate,
-  async (req, res) => {
+router.get("/timetable/batch/:batchId", authenticate, async (req, res) => {
+  try {
     const batchId = parseInt(req.params.batchId);
+
+    if (isNaN(batchId)) {
+      return res.status(400).json({ message: "Invalid batchId" });
+    }
 
     const entries = await prisma.timetableEntry.findMany({
       where: { batchId },
@@ -28,10 +32,7 @@ router.get(
     });
 
     if (entries.length === 0) {
-      return res.json({
-        generated: false,
-        timetable: {},
-      });
+      return res.json({ generated: false, timetable: {} });
     }
 
     const timetable = {};
@@ -40,9 +41,7 @@ router.get(
       const day = entry.timeSlot.day;
       const time = `${entry.timeSlot.startTime} - ${entry.timeSlot.endTime}`;
 
-      if (!timetable[day]) {
-        timetable[day] = [];
-      }
+      if (!timetable[day]) timetable[day] = [];
 
       timetable[day].push({
         time,
@@ -53,11 +52,11 @@ router.get(
       });
     }
 
-    res.json({
-      generated: true,
-      timetable,
-    });
+    res.json({ generated: true, timetable });
+  } catch (error) {
+    console.error("GET /timetable/batch/:batchId error:", error);
+    res.status(500).json({ message: "Failed to fetch timetable" });
   }
-);
+});
 
 module.exports = router;

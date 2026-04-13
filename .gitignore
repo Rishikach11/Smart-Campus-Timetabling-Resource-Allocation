@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables — NEVER commit .env files
+.env
+**/.env
+
+# Keep example files
+!**/.env.example
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Prisma generated client
+**/generated/prisma/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

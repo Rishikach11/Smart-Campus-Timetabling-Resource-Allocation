@@ -3,74 +3,125 @@ import Navbar from "../../components/navbar";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+const DAYS_ORDER = ["MON", "TUE", "WED", "THU", "FRI"];
+const DAY_LABELS = { MON: "Monday", TUE: "Tuesday", WED: "Wednesday", THU: "Thursday", FRI: "Friday" };
+
 function FacultyTimetable() {
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
 
   const [timetable, setTimetable] = useState(null);
-  const [message, setMessage] = useState("Loading timetable...");
+  const [status, setStatus] = useState("loading"); // loading | generated | empty | error
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const fetchTimetable = async () => {
       try {
-        const res = await fetch(
-          `${API_URL}/api/timetable/faculty`,
-          { headers }
-        );
-
+        const res = await fetch(`${API_URL}/api/timetable/faculty`, { headers });
         const data = await res.json();
 
-        if (data.generated) {
+        if (data.generated && Object.keys(data.timetable || {}).length > 0) {
           setTimetable(data.timetable);
-          setMessage("");
+          setStatus("generated");
         } else {
-          setMessage("📭 No classes assigned yet");
+          setStatus("empty");
+          setMessage("No classes have been assigned to you yet. Check back after the admin generates timetables.");
         }
       } catch {
-        setMessage("Failed to load timetable");
+        setStatus("error");
+        setMessage("Failed to load your schedule. Please try again.");
       }
     };
 
     fetchTimetable();
   }, []);
 
+  const sortedDays = timetable ? DAYS_ORDER.filter((d) => timetable[d]) : [];
+
+  const totalClasses = timetable
+    ? Object.values(timetable).reduce((sum, slots) => sum + slots.length, 0)
+    : 0;
+
+  const statusConfig = {
+    generated: { bg: "#d1fae5", color: "#065f46", label: "Schedule Active" },
+    empty:     { bg: "#fef3c7", color: "#92400e", label: " No Classes Assigned" },
+    loading:   { bg: "#f1f5f9", color: "#64748b", label: "Loading..." },
+    error:     { bg: "#fee2e2", color: "#991b1b", label: " Error" },
+  };
+  const sc = statusConfig[status] || statusConfig.loading;
+
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ fontFamily: "sans-serif", padding: "24px", maxWidth: "960px", margin: "0 auto" }}>
       <Navbar />
-      <h1>My Teaching Schedule</h1>
 
-      {message && <p>{message}</p>}
+      <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "8px" }}>
+        <h1 style={{ margin: 0 }}>My Teaching Schedule</h1>
+        <span style={{ padding: "4px 12px", borderRadius: "999px", fontSize: "13px", fontWeight: 600, background: sc.bg, color: sc.color }}>
+          {sc.label}
+        </span>
+      </div>
 
-      {timetable &&
-        Object.entries(timetable).map(([day, slots]) => (
-          <div key={day} style={{ marginBottom: "20px" }}>
-            <h3 style={{ marginTop: "20px" }}>{day}</h3>
-            <table border="1" cellPadding="8">
+      {status === "generated" && (
+        <p style={{ margin: "0 0 24px", color: "#64748b", fontSize: "14px" }}>
+          {totalClasses} class{totalClasses !== 1 ? "es" : ""} scheduled across {sortedDays.length} day{sortedDays.length !== 1 ? "s" : ""} this week.
+        </p>
+      )}
+
+      {message && (
+        <p style={{ color: "#555", padding: "12px 16px", background: "#f5f5f5", borderRadius: "6px", marginBottom: "24px", fontSize: "14px" }}>
+          {message}
+        </p>
+      )}
+
+      {timetable && sortedDays.length === 0 && (
+        <p style={{ color: "#aaa", fontStyle: "italic" }}>No classes scheduled this week.</p>
+      )}
+
+      {timetable && sortedDays.map((day) => (
+        <div key={day} style={{ marginBottom: "28px" }}>
+          <h3 style={{ marginBottom: "8px", color: "#1e293b", borderBottom: "2px solid #e2e8f0", paddingBottom: "6px" }}>
+            {DAY_LABELS[day] || day}
+          </h3>
+          {timetable[day].length === 0 ? (
+            <p style={{ color: "#aaa", fontStyle: "italic" }}>No classes today</p>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
               <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Course</th>
-                  <th>Room</th>
-                  <th>Type</th>
-                  <th>Batch</th>
+                <tr style={{ background: "#f8fafc" }}>
+                  {["Time", "Course", "Batch", "Room", "Type"].map((h) => (
+                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, fontSize: "13px", color: "#475569", borderBottom: "2px solid #e2e8f0" }}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {slots.map((s, i) => (
-                  <tr key={i}>
-                    <td>{s.time}</td>
-                    <td>{s.course}</td>
-                    <td>{s.room}</td>
-                    <td>{s.type}</td>
-                    <td>{s.batch}</td>
+                {timetable[day].map((s, i) => (
+                  <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                    <td style={td}>{s.time}</td>
+                    <td style={td}><strong>{s.course}</strong></td>
+                    <td style={td}>{s.batch}</td>
+                    <td style={td}>{s.room}</td>
+                    <td style={td}>
+                      <span style={{
+                        padding: "2px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 500,
+                        background: s.type === "LAB" ? "#ede9fe" : "#dbeafe",
+                        color: s.type === "LAB" ? "#5b21b6" : "#1e40af",
+                      }}>
+                        {s.type}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        ))}
+          )}
+        </div>
+      ))}
     </div>
   );
 }
+
+const td = { padding: "10px 14px", borderBottom: "1px solid #f1f5f9", color: "#334155" };
 
 export default FacultyTimetable;

@@ -36,16 +36,16 @@ router.post(
 );
 
 /**
- * List Departments (ADMIN)
+ * List Departments (authenticated)
  */
-router.get(
-  "/departments",
-  authenticate,
-  authorizeAdmin,
-  async (req, res) => {
+router.get("/departments", authenticate, async (req, res) => {
+  try {
     const departments = await prisma.department.findMany();
     res.json(departments);
+  } catch (error) {
+    console.error("GET /departments error:", error);
+    res.status(500).json({ message: "Failed to fetch departments" });
   }
-);
+});
 
 module.exports = router;

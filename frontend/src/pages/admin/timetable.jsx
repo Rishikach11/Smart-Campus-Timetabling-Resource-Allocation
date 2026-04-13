@@ -18,19 +18,12 @@ function AdminTimetable() {
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-useEffect(() => {
-  const token = localStorage.getItem("token");
-  const API_URL = import.meta.env.VITE_API_URL;
-
-  fetch(`${API_URL}/api/batch`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
-    .then((res) => res.json())
-    .then(setBatches)
-    .catch(() => setMessage("Failed to load batches"));
-}, []);
+  useEffect(() => {
+    fetch(`${API_URL}/api/batch`, { headers })
+      .then((res) => res.json())
+      .then(setBatches)
+      .catch(() => setMessage("Failed to load batches"));
+  }, []);
 
   const loadTimetable = async (id) => {
     if (!id) { setTimetable(null); return; }

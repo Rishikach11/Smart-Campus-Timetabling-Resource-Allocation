@@ -35,13 +35,18 @@ router.post(
 );
 
 /**
- * List Batches (ADMIN)
+ * List Batches (authenticated)
  */
 router.get("/batch", authenticate, async (req, res) => {
-  const batches = await prisma.batch.findMany({
-    include: { department: true }
-  });
-  res.json(batches);
+  try {
+    const batches = await prisma.batch.findMany({
+      include: { department: true },
+    });
+    res.json(batches);
+  } catch (error) {
+    console.error("GET /batch error:", error);
+    res.status(500).json({ message: "Failed to fetch batches" });
+  }
 });
 
 module.exports = router;

@@ -53,11 +53,11 @@ function StudentTimetable() {
   const sortedDays = timetable ? DAYS_ORDER.filter((d) => timetable[d]) : [];
 
   const statusColors = {
-    generated: { bg: "#d1fae5", color: "#065f46", label: "✅ Generated" },
-    pending:   { bg: "#fef3c7", color: "#92400e", label: "⏳ Pending" },
+    generated: { bg: "#d1fae5", color: "#065f46", label: " Generated" },
+    pending:   { bg: "#fef3c7", color: "#92400e", label: " Pending" },
     loading:   { bg: "#f1f5f9", color: "#64748b", label: "Loading..." },
-    error:     { bg: "#fee2e2", color: "#991b1b", label: "❌ Error" },
-    "no-batch":{ bg: "#f1f5f9", color: "#64748b", label: "📭 No Batch" },
+    error:     { bg: "#fee2e2", color: "#991b1b", label: " Error" },
+    "no-batch":{ bg: "#f1f5f9", color: "#64748b", label: " No Batch" },
   };
   const s = statusColors[status] || statusColors.pending;
 

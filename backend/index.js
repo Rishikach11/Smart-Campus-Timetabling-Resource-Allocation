@@ -6,7 +6,24 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Global middleware
-app.use(cors());
+// CORS — in production set CORS_ORIGIN to the frontend URL (e.g. https://your-app.vercel.app)
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : ["http://localhost:5173", "http://localhost:3000"];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // ================= ROUTE IMPORTS =================
@@ -24,8 +41,6 @@ const roomRoutes = require("./routes/room.routes");
 const timetableRoutes = require("./routes/timetable.routes");
 const timetableViewRoutes = require("./routes/timetable.view.routes");
 const generateRoutes = require("./routes/generate.routes");
-const facultyTimetableRoutes = require("./routes/timetable.faculty.routes");
-
 
 // ================= ROUTE MOUNTING =================
 app.use("/api", healthRoutes);
@@ -43,8 +58,6 @@ app.use("/api", roomRoutes);
 app.use("/api/timetable", timetableRoutes);
 app.use("/api", timetableViewRoutes);
 app.use("/api", generateRoutes);
-app.use("/api", facultyTimetableRoutes);
-
 
 // ================= SERVER START =================
 app.listen(PORT, () => {

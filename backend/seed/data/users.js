@@ -75,10 +75,4 @@ module.exports = [
     role: "STUDENT",
     batch: { department: "ECE", semester: 7 },
   },
-  {
-    name: "ECE Student 3",
-    email: "ece7a2@uni.com",
-    role: "STUDENT",
-    batch: { department: "ECE", semester: 7 },
-  },
 ];
